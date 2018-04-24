@@ -6,6 +6,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.widget.Toast;
 
 import com.shahal.assignmentproject.R;
@@ -39,6 +41,8 @@ public class MainActivity extends AppCompatActivity implements OnAnnouncementCli
     AnnouncementAdapter announcementAdapter;
 
     private Unbinder unbinder;
+    private boolean isThumb = true;
+    private Menu mMenu = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,9 +56,11 @@ public class MainActivity extends AppCompatActivity implements OnAnnouncementCli
     @Override
     protected void onResume() {
         super.onResume();
-        if(announcementData==null || announcementData.size()<=0){
+        if (announcementData == null || announcementData.size() <= 0) {
+            refreshLayout.setRefreshing(true);
             getAnnouncements();
         }
+
     }
 
     @Override
@@ -68,35 +74,68 @@ public class MainActivity extends AppCompatActivity implements OnAnnouncementCli
         rvAnnouncements.setHasFixedSize(true);
         LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this);
         rvAnnouncements.setLayoutManager(linearLayoutManager);
-        announcementAdapter = new AnnouncementAdapter(this,announcementData, this);
+        announcementAdapter = new AnnouncementAdapter(this, announcementData, this);
         rvAnnouncements.setAdapter(announcementAdapter);
     }
 
     @Override
     public void onAnnouncementClicked(String title, String htmlText) {
-        Intent intent = new Intent(this,DetailActivity.class);
-        intent.putExtra(ANNOUNCEMENT_TITLE,title);
-        intent.putExtra(ANNOUNCEMENT_HTML,htmlText);
+        Intent intent = new Intent(this, DetailActivity.class);
+        intent.putExtra(ANNOUNCEMENT_TITLE, title);
+        intent.putExtra(ANNOUNCEMENT_HTML, htmlText);
         startActivity(intent);
     }
 
-    private void getAnnouncements(){
-        if(!isNetworkConnected(this)){
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        mMenu = menu;
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        menu.findItem(R.id.full_menu).setChecked(!isThumb);
+        menu.findItem(R.id.thumb_menu).setChecked(isThumb);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        switch (item.getItemId()) {
+            case R.id.full_menu:
+                item.setChecked(!item.isChecked());
+                isThumb = !item.isChecked();
+                mMenu.findItem(R.id.thumb_menu).setChecked(isThumb);
+                updateRecyclerView();
+                return true;
+            case R.id.thumb_menu:
+                item.setChecked(!item.isChecked());
+                isThumb = item.isChecked();
+                mMenu.findItem(R.id.full_menu).setChecked(!isThumb);
+                updateRecyclerView();
+                return true;
+            default:
+                return false;
+        }
+
+    }
+
+    private void getAnnouncements() {
+        if (!isNetworkConnected(this)) {
             Toast.makeText(this, "No network available, please check your WiFi or Data connection", Toast.LENGTH_SHORT).show();
             return;
         }
-        HashMap<String,String> hashMap = new HashMap<>();
-        hashMap.put("TemplateName","Promotions_ipad.htm");
-        hashMap.put("p","Common.Announcements");
-        hashMap.put("Handler","News");
-        hashMap.put("AppName","EMC");
-        hashMap.put("Type","News");
-        hashMap.put("F","J");
+        HashMap<String, String> hashMap = new HashMap<>();
+        hashMap.put("TemplateName", "Promotions_ipad.htm");
+        hashMap.put("p", "Common.Announcements");
+        hashMap.put("Handler", "News");
+        hashMap.put("AppName", "EMC");
+        hashMap.put("Type", "News");
+        hashMap.put("F", "J");
         Call<ArrayList<AnnouncementData>> request = ServiceGenerator.createService(AnnouncementApi.class).getAnnouncements(hashMap);
         request.enqueue(new Callback<ArrayList<AnnouncementData>>() {
             @Override
             public void onResponse(Call<ArrayList<AnnouncementData>> call, Response<ArrayList<AnnouncementData>> response) {
-                if(!response.isSuccessful()){
+                if (!response.isSuccessful()) {
                     refreshLayout.setRefreshing(false);
                     return;
                 }
@@ -106,7 +145,7 @@ public class MainActivity extends AppCompatActivity implements OnAnnouncementCli
 
             @Override
             public void onFailure(Call<ArrayList<AnnouncementData>> call, Throwable t) {
-                Toast.makeText(MainActivity.this, "Error : "+t.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "Error : " + t.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
                 refreshLayout.setRefreshing(false);
             }
         });
@@ -114,17 +153,17 @@ public class MainActivity extends AppCompatActivity implements OnAnnouncementCli
 
 
     private void updateRecyclerView() {
-        if(announcementAdapter==null){
-            announcementAdapter = new AnnouncementAdapter(this,announcementData, this);
+        if (announcementAdapter == null) {
+            announcementAdapter = new AnnouncementAdapter(this, announcementData, this);
             rvAnnouncements.setAdapter(announcementAdapter);
         }
-        announcementAdapter.updateData(announcementData);
+        announcementAdapter.updateData(announcementData, isThumb);
         refreshLayout.setRefreshing(false);
     }
 
     @Override
     public void onRefresh() {
-        if(announcementAdapter==null){
+        if (announcementAdapter == null) {
             setRecyclerView();
         }
         refreshLayout.setRefreshing(true);

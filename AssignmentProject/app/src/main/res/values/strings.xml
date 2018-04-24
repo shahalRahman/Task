@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">AssignmentProject</string>
+    <string name="image_thumb">Image Thumbnail</string>
+    <string name="image_full">Image Full</string>
 </resources>
